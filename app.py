@@ -65,12 +65,8 @@ def _():
             stored_hashed_password = user['user_password'].encode('utf-8')
             if bcrypt.checkpw(user_password.encode('utf-8'), stored_hashed_password):
                 user.pop("user_password")
-                try:
-                    import production
-                    is_cookie_https = True
-                except:
-                    is_cookie_https = False        
-                    response.set_cookie("user", user, secret=x.COOKIE_SECRET, httponly=True, secure=is_cookie_https)
+                    
+                response.set_cookie("user", user, secret=x.COOKIE_SECRET, httponly=True, secure=True)
                 return user
             else: 
                 response.status = 401
@@ -81,7 +77,6 @@ def _():
             return "User not found"
     except Exception as ex:
         print(ex)
-        print("*********************************************************************")
         if len(ex.args) > 1 and ex.args[1]:
             response.status=ex.args[1]
         else:
