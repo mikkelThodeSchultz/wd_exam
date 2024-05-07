@@ -18,7 +18,10 @@ def db():
 ##############################
 def initialize_db():
     try:
-        with open("db.sql", 'r') as file:
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        sql_file_path = os.path.join(script_dir, "../db.sql")
+
+        with open(sql_file_path, 'r') as file:
             sql_script = file.read()
 
         connection = db()

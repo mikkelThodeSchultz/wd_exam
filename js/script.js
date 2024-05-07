@@ -8,6 +8,7 @@ loginForm.addEventListener("submit", async (e) => {
             body: formData
         });
 
+        //TODO Handle response and make front end validation
         console.log(response);
         
     } catch (error) {
