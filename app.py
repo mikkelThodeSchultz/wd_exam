@@ -37,7 +37,7 @@ def _():
 
 ##############################
 @get("/test_db_connection")
-def test_db_connection():
+def _():
     try:
         db = x.db()
         db.execute("SELECT 1")
@@ -50,9 +50,22 @@ def test_db_connection():
 
 ##############################
 @get("/initialize_database")
-def initialize_db():
+def _():
     x.initialize_db()
     return "Database initialized"
+
+@get("/users")
+def _():
+    try:
+        db = x.db()
+        q = db.execute("SELECT * FROM users")
+        users = q.fetchall()
+        print(users)
+        return "users"
+    except Exception as ex:
+        print(ex)
+    finally:
+        db.close()
 
 ##############################
 #POST
