@@ -61,12 +61,18 @@ def _():
         q = db.execute("SELECT * FROM users WHERE user_email = (?) LIMIT 1", (user_email,))
         user = q.fetchone()
 
+        return user
+
         if user:
             stored_hashed_password = user['user_password'].encode('utf-8')
             if bcrypt.checkpw(user_password.encode('utf-8'), stored_hashed_password):
                 user.pop("user_password")
-                    
-                response.set_cookie("user", user, secret=x.COOKIE_SECRET, httponly=True, secure=True)
+                try:
+                    import production
+                    is_cookie_https = True
+                except:
+                    is_cookie_https = False        
+                    response.set_cookie("user", user, secret=x.COOKIE_SECRET, httponly=True, secure=is_cookie_https)
                 return user
             else: 
                 response.status = 401
