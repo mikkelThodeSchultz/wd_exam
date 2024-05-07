@@ -1,7 +1,5 @@
-from bottle import default_app, get, post, run
+from bottle import default_app, get, post, run, template, static_file
 import git
-
-#https://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@github.com/mikkelThodeSchultz/wd_exam.git
 
 @post('/1fa5b451-8928-40e8-9324-f707ebfcb485')
 def git_update():
@@ -11,11 +9,22 @@ def git_update():
     origin.pull()
     return ""
 
- 
+##############################
+#GET
+##############################
+@get("/favicon.ico")
+def _():
+    return static_file("favicon.ico", ".")
+
 ##############################
 @get("/")
 def _():
-    return "Five"
+    return "X"
+
+##############################
+@get("/login")
+def _():
+    return template("login", title="Login")
  
 ##############################
 try:
