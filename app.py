@@ -35,18 +35,18 @@ def _():
 def _():
     return template("login", title="Login")
 
-
+##############################
 @get('/test_db_connection')
 def test_db_connection():
     try:
-        # Attempt to connect to the database
         db = x.db()
         db.execute("SELECT 1")
-        db.close()
         return {"success": True, "message": "Database connection successful"}
     except Exception as e:
-        response.status = 500  # Set response status to 500 for internal server error
+        response.status = 500
         return {"success": False, "error": str(e)}
+    finally:
+        db.close()
 
 ##############################
 #POST
@@ -74,13 +74,14 @@ def _():
                 return user
             else: 
                 response.status = 401
-                #This is incorrect password, but the user should not know where the error is
+                #This is incorrect password, but the user should not know which one is incorrect
                 return "Incorrect email or password"
         else:
             response.status = 404
             return "User not found"
     except Exception as ex:
         print(ex)
+        print("*********************************************************************")
         if len(ex.args) > 1 and ex.args[1]:
             response.status=ex.args[1]
         else:
