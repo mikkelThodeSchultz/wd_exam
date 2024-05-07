@@ -17,14 +17,18 @@ def db():
 
 ##############################
 def initialize_db():
-    with open("db.sql", 'r') as file:
-        sql_script = file.read()
+    try:
+        with open("db.sql", 'r') as file:
+            sql_script = file.read()
 
-    connection = sqlite3.connect("db.db")
-    cursor = connection.cursor()
-    cursor.executescript(sql_script)
-    connection.commit()
-    connection.close()
+        connection = db()
+        cursor = connection.cursor()
+        cursor.executescript(sql_script)
+        connection.commit()
+    except Exception as ex:
+        print(ex)
+    finally:
+        connection.close()
 
 ##############################
 #Validate
