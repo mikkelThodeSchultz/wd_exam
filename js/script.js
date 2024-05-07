@@ -3,8 +3,7 @@ loginForm.addEventListener("submit", async (e) => {
     e.preventDefault();
     try {
         const formData = new FormData(loginForm)
-        console.log(formData.get("user_email"));
-        const response = await fetch("/login", {
+        const response = await fetch("/https://mikkelthodeschultz.pythonanywhere.com/login", {
             method: 'POST',
             body: formData
         });
