@@ -12,6 +12,14 @@ def git_update():
 ##############################
 #GET
 ##############################
+@get("/css/<filename:path>")
+def _(filename):
+    return static_file(filename, root="./css")
+
+@get("/js/<filename:path>")
+def _(filename):
+    return static_file(filename, root="./js")
+
 @get("/favicon.ico")
 def _():
     return static_file("favicon.ico", ".")
