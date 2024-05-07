@@ -16,6 +16,17 @@ def db():
     return db
 
 ##############################
+def initialize_db():
+    with open("db.sql", 'r') as file:
+        sql_script = file.read()
+
+    connection = sqlite3.connect("db.db")
+    cursor = connection.cursor()
+    cursor.executescript(sql_script)
+    connection.commit()
+    connection.close()
+
+##############################
 #Validate
 ##############################
 EMAIL_REGEX = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
