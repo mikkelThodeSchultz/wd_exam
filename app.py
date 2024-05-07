@@ -1,7 +1,9 @@
 from bottle import default_app, get, post, run
 import git
- 
-@post('/secret_url_for_git_hook')
+
+#https://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@github.com/mikkelThodeSchultz/wd_exam.git
+
+@post('/1fa5b451-8928-40e8-9324-f707ebfcb485')
 def git_update():
     repo = git.Repo('./wd_exam')
     origin = repo.remotes.origin
@@ -13,7 +15,7 @@ def git_update():
 ##############################
 @get("/")
 def _():
-    return "One"
+    return "Two"
  
 ##############################
 try:
