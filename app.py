@@ -35,6 +35,19 @@ def _():
 def _():
     return template("login", title="Login")
 
+
+@get('/test_db_connection')
+def test_db_connection():
+    try:
+        # Attempt to connect to the database
+        db = x.db()
+        db.execute("SELECT 1")
+        db.close()
+        return {"success": True, "message": "Database connection successful"}
+    except Exception as e:
+        response.status = 500  # Set response status to 500 for internal server error
+        return {"success": False, "error": str(e)}
+
 ##############################
 #POST
 ##############################

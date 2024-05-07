@@ -9,10 +9,7 @@ loginForm.addEventListener("submit", async (e) => {
         });
 
         console.log(response);
-        if(!response.ok){
-            console.log("no");
-        }
-        console.log("yes");
+        
     } catch (error) {
         console.log(error);
     }
