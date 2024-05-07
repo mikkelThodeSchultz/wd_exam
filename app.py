@@ -1,5 +1,6 @@
-from bottle import default_app, get, post, run, template, static_file
+from bottle import default_app, get, post, run, template, static_file, response, request
 import git
+import x, bcrypt
 
 @post('/1fa5b451-8928-40e8-9324-f707ebfcb485')
 def git_update():
@@ -33,7 +34,49 @@ def _():
 @get("/login")
 def _():
     return template("login", title="Login")
+
+##############################
+#POST
+##############################
+@post("/login")
+def _():
+    try:
+        user_email = x.validate_email()
+        user_password = x.validate_password()
+
+        db = x.db()
+        q = db.execute("SELECT * FROM users WHERE user_email = (?) LIMIT 1", (user_email,))
+        user = q.fetchone()
+
+        if user:
+            stored_hashed_password = user['user_password'].encode('utf-8')
+            if bcrypt.checkpw(user_password.encode('utf-8'), stored_hashed_password):
+                user.pop("user_password")
+                try:
+                    import production
+                    is_cookie_https = True
+                except:
+                    is_cookie_https = False        
+                    response.set_cookie("user", user, secret=x.COOKIE_SECRET, httponly=True, secure=is_cookie_https)
+                return user
+            else: 
+                response.status = 401
+                #This is incorrect password, but the user should not know where the error is
+                return "Incorrect email or password"
+        else:
+            response.status = 404
+            return "User not found"
+    except Exception as ex:
+        print(ex)
+        if len(ex.args) > 1 and ex.args[1]:
+            response.status=ex.args[1]
+        else:
+            response.status = 500
+        return ex.args[0]
+    finally:
+        if "db" in locals(): db.close()
  
+
 ##############################
 try:
     import production
