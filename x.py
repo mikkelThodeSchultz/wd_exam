@@ -6,8 +6,9 @@ from email.mime.text import MIMEText
 from dotenv import load_dotenv
 
 load_dotenv()
-
-COOKIE_SECRET = "41ebeca46f3b-4d77-a8e2-554659075C6319a2fbfb-9a2D-4fb6-Afcad32abb26a5e0"
+email = os.getenv("EMAIL_USERNAME")
+COOKIE_SECRET = os.getenv("COOKIE_SECRET")
+MAPBOX_TOKEN = os.getenv("MAPBOX_TOKEN")
 script_dir = os.path.dirname(os.path.abspath(__file__))
 
 ##############################
@@ -54,7 +55,7 @@ def send_password_reset_email(recipient_email, reset_password_key):
             <title>Reset Password</title>
         </head>
         <body>
-            <h1>Account Verification</h1>
+            <h1>Reset Password</h1>
             <p>Click the button below to reset you're password:</p>
             <a href="http://127.0.0.1/reset-password?token={reset_password_key}">
                 <button style="padding: 10px 20px; background-color: #007bff; color: #fff; border: none; cursor: pointer;">Reset Password</button>
@@ -148,7 +149,7 @@ def validate_username():
 def validate_user_role():
     error = "Invalid user role"
     user_role = request.forms.get("user_role", "").strip()
-    if user_role not in ["customer", "partner"]:
+    if user_role not in ["customer", "partner", "admin"]:
         return error
     else:
         return user_role

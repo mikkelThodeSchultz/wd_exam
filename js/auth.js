@@ -35,6 +35,14 @@ function verifyFormdata(formData){
             return false
         }
     }
+    if(formData.get("user_password_2")){
+        const password = formData.get("user_password")
+        const password2 = formData.get("user_password_2")
+        if(password != password2){
+            toastr.warning("Passwords do not match. Please make sure your passwords match before proceeding")
+            return false 
+        }
+    }
     return true
 }
 
@@ -97,16 +105,32 @@ export const resetPassword = async (formData) => {
     }
 }
 
-export const verifyResetPasswordToken = async (token) => {
+export const verifyResetPasswordToken = async (token, formData) => {
     if(!token){
+        return
+    }
+    if(!verifyFormdata(formData)){
         return
     }
     try{
         const response = await fetch(`/verify-reset-password?token=${encodeURIComponent(token)}`, {
-            method: 'POST'
+            method: 'POST',
+            body: formData
         })
         return response
     } catch (error) {
         throw new Error("Password reset failed : " + error)
+    }
+}
+
+export const getUser = async () => {
+    try{
+        const response = await fetch("/cookie", {
+            method: "GET"
+        })
+        const cookieValue = await response.json()
+        return cookieValue
+    } catch (error) {
+        throw new Error("Error getting cookie: " + error)
     }
 }

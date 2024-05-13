@@ -1,6 +1,7 @@
-from bottle import default_app, get, post, run, template, static_file, response, request
+from bottle import default_app, get, post, run, template, static_file, response, request, cookie_decode
 from json import dumps
 import git, x, bcrypt, time, uuid
+
 
 @post('/1fa5b451-8928-40e8-9324-f707ebfcb485')
 def git_update():
@@ -21,6 +22,10 @@ def _(filename):
 def _(filename):
     return static_file(filename, root="./js")
 
+@get("/images/<filename:path>")
+def _(filename):
+    return static_file(filename, root="./images")
+
 @get("/app.js")
 def _():
     return static_file("app.js", ".")
@@ -32,32 +37,68 @@ def _():
 ##############################
 @get("/")
 def _():
-    return template("index", title="Company")
+    return template("index", title="Company", is_index_page=True)
 
+##############################
+@get("/profile")
+def _():
+    return template("profile", title="Profile", is_index_page=False)
+
+##############################
+@get("/house")
+def _():
+    try:
+        db = x.db()
+        q = db.execute("SELECT * FROM houses")
+        houses = q.fetchall()
+        houses_with_Images = []
+        for house in houses:
+            house_dict = dict(house)
+            q = db.execute("SELECT image_url FROM house_images WHERE house_pk = ?", (house['house_pk'],))
+            images = q.fetchall()
+            house_images = [image["image_url"] for image in images]
+            house_dict["images"] = house_images
+            houses_with_Images.append(house_dict)
+        db.close()
+        return dumps(houses_with_Images)
+    except Exception as ex:
+        print(ex)
+        if len(ex.args) > 1 and ex.args[1]:
+            response.status=ex.args[1]
+        else:
+            response.status = 500
+        return ex.args[0]
+    finally:
+        if "db" in locals(): db.close()
+
+##############################
+@get("/mapbox_token")
+def _():
+    return x.MAPBOX_TOKEN
 ##############################
 @get("/login")
 def _():
-    return template("login", title="Login")
+    return template("login", title="Login" , is_index_page=False)
 
 ##############################
 @get("/signup")
 def _():
-    return template("signup", title="Signup")
+    return template("signup", title="Signup" , is_index_page=False)
 
 ##############################
 @get("/verify-account")
 def _():
-    return template("verify-account", title="Verify account")
+    return template("verify-account", title="Verify account" , is_index_page=False)
 
 ##############################
 @get("/reset-password")
 def _():
-    return template("reset-password", title="Reset password")
+    return template("reset-password", title="Reset password" , is_index_page=False)
 
 ##############################
 @get("/reset-password-form")
 def _():
-    return template("reset-password-form", title="Reset password")
+    return template("reset-password-form", title="Reset password" , is_index_page=False)
 
 ##############################
 @get("/logout")
@@ -87,7 +128,7 @@ def _():
     return "Database initialized"
 
 ##############################
-@get("/users")
+@get("/user")
 def _():
     try:
         db = x.db()
@@ -101,6 +142,18 @@ def _():
     finally:
         if "db" in locals(): db.close()
 
+##############################
+@get("/cookie")
+def get_cookie():
+    user_cookie = request.get_cookie('user', secret=x.COOKIE_SECRET)
+    if user_cookie:
+        response.status = 200
+        return user_cookie 
+    else: 
+        response.status = 404
+        return "No cookies found"
+    
+            
 ##############################
 @get("/password_reset")
 def _():
@@ -119,7 +172,6 @@ def _():
 ##############################
 @post("/login")
 def _():
-
     try:
         user_email = x.validate_email()
         user_password = x.validate_password()
@@ -243,14 +295,31 @@ def _():
 @post("/verify-reset-password")
 def _():
     try:
-        token = request.query.token
-        print(token)
-        print("********************************************")
-        #TODO: Check that the 
+        reset_token = request.query.token
+        user_password = x.validate_password()
+        hashed_password = bcrypt.hashpw(user_password.encode('utf-8'), bcrypt.gensalt())
+        db = x.db()
+        q = db.execute("SELECT user_pk FROM password_reset WHERE reset_token = ?", (reset_token,))
+        user_pk = q.fetchone()
+        if user_pk:
+            db.execute("UPDATE users SET user_password = ? WHERE user_pk = ?", (hashed_password, user_pk["user_pk"]))
+            db.commit()
+            db.execute("DELETE FROM password_reset WHERE reset_token = ?", (reset_token,))
+            db.commit()
+            response.status = 200
+            return "User have been updated"
+        else:
+            response.status = 404
+            return "No user matching the given code"
     except Exception as ex:
         print(ex)
+        if len(ex.args) > 1 and ex.args[1]:
+            response.status=ex.args[1]
+        else:
+            response.status = 500
+        return ex.args[0]
     finally:
-        pass
+        if "db" in locals(): db.close()
 
 ##############################
 try:

@@ -11,14 +11,22 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/2.1.4/toastr.min.js"></script>
     <script src="/app.js" type="module"></script>
-
-
+    % if is_index_page:
+        <script src='https://api.mapbox.com/mapbox-gl-js/v2.6.1/mapbox-gl.js'></script>
+        <link href='https://api.mapbox.com/mapbox-gl-js/v2.6.1/mapbox-gl.css' rel='stylesheet' />
+        <script src="../js/houses.js"></script>
+    % end
 </head>
     <nav>
         <a href="/">Home</a>
-        <a href="/login">Login</a>
-        <a href="/signup">Signup</a>
-        <a href="/logout">Logout</a>
+        <span id="loggedOutLinks">
+            <a href="/login">Login</a>
+            <a href="/signup">Signup</a>
+        </span>
+        <span id="loggedInLinks" class="hidden">
+            <a href="/profile">Profile</a>
+            <a href="/logout">Logout</a>
+        </span>
     </nav>
 <body>
     
