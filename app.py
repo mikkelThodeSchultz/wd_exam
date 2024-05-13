@@ -1,4 +1,4 @@
-from bottle import default_app, get, post, run, template, static_file, response, request, cookie_decode
+from bottle import default_app, get, post, run, template, static_file, response, request
 from json import dumps
 import git, x, bcrypt, time, uuid
 
