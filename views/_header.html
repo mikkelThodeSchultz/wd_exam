@@ -14,7 +14,7 @@
     % if is_index_page:
         <script src='https://api.mapbox.com/mapbox-gl-js/v2.6.1/mapbox-gl.js'></script>
         <link href='https://api.mapbox.com/mapbox-gl-js/v2.6.1/mapbox-gl.css' rel='stylesheet' />
-        <script src="../js/houses.js"></script>
+        <script src="../js/houses.js" type="module"></script>
     % end
 </head>
     <nav>
@@ -26,6 +26,9 @@
         <span id="loggedInLinks" class="hidden">
             <a href="/profile">Profile</a>
             <a href="/logout">Logout</a>
+        </span>
+        <span id="adminLink" class="hidden">
+            <a href="/admin">Admin</a>
         </span>
     </nav>
 <body>

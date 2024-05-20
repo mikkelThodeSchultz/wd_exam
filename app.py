@@ -1,6 +1,7 @@
-from bottle import default_app, get, post, run, template, static_file, response, request
+from bottle import default_app, get, post, run, template, static_file, response, request, put, delete
 from json import dumps
-import git, x, bcrypt, time, uuid
+import git, x, bcrypt, time, uuid, os
+
 
 
 @post('/1fa5b451-8928-40e8-9324-f707ebfcb485')
@@ -42,16 +43,26 @@ def _():
 ##############################
 @get("/profile")
 def _():
+    cookie = get_cookie()
+    if cookie == "No cookies found":
+        response.status = 303
+        response.set_header('Location', '/login')
     return template("profile", title="Profile", is_index_page=False)
 
 ##############################
 @get("/house")
 def _():
     try:
+        user_pk = request.query.get('user_pk')  
+
         db = x.db()
-        q = db.execute("SELECT * FROM houses")
+        if user_pk:
+            q = db.execute("SELECT * FROM houses WHERE user_pk = ?", (user_pk,))
+        else:
+            q = db.execute("SELECT * FROM houses")
         houses = q.fetchall()
         houses_with_Images = []
+
         for house in houses:
             house_dict = dict(house)
             q = db.execute("SELECT image_url FROM house_images WHERE house_pk = ?", (house['house_pk'],))
@@ -84,6 +95,11 @@ def _():
 @get("/signup")
 def _():
     return template("signup", title="Signup" , is_index_page=False)
+
+##############################
+@get("/admin")
+def _():
+    return template("admin", title="Admin", is_index_page=False)
 
 ##############################
 @get("/verify-account")
@@ -134,7 +150,7 @@ def _():
         db = x.db()
         #Since the hashed password is stored as bytes, and for security reasons, 
         #i am excluding it from this fetch so the dict_factory method still works
-        q = db.execute("SELECT user_pk, user_username, user_email, user_role, user_created_at, user_updated_at, user_deleted_at, user_is_verified, user_verification_key FROM users")
+        q = db.execute("SELECT user_pk, user_username, user_email, user_role, user_created_at, user_updated_at, user_deleted_at, user_is_verified, user_is_blocked, user_verification_key FROM users")
         users = q.fetchall()
         return dumps(users)
     except Exception as ex:
@@ -148,7 +164,7 @@ def get_cookie():
     user_cookie = request.get_cookie('user', secret=x.COOKIE_SECRET)
     if user_cookie:
         response.status = 200
-        return user_cookie 
+        return user_cookie
     else: 
         response.status = 404
         return "No cookies found"
@@ -176,7 +192,7 @@ def _():
         user_email = x.validate_email()
         user_password = x.validate_password()
         db = x.db()
-        q = db.execute("SELECT * FROM users WHERE user_email = ? AND user_deleted_at = 0 AND user_is_verified = 1 LIMIT 1", (user_email,))
+        q = db.execute("SELECT * FROM users WHERE user_email = ? AND user_deleted_at = 0 AND user_is_verified = 1 AND user_is_blocked = 0 LIMIT 1", (user_email,))
         user = q.fetchone()
 
         if user:
@@ -221,8 +237,8 @@ def _():
         current_unix_time = int(time.time())
         user_verification_key = str(uuid.uuid4())
     
-        db.execute("INSERT INTO users (user_pk, user_username, user_email, user_password, user_role, user_created_at, user_updated_at, user_deleted_at, user_is_verified, user_verification_key) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                   (user_pk, user_username, user_email, hashed_password, user_role, current_unix_time, 0, 0, 0, user_verification_key))
+        db.execute("INSERT INTO users (user_pk, user_username, user_email, user_password, user_role, user_created_at, user_updated_at, user_deleted_at, user_is_verified, user_is_blocked, user_verification_key) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                   (user_pk, user_username, user_email, hashed_password, user_role, current_unix_time, 0, 0, 0, 0, user_verification_key))
         db.commit()
 
         x.send_verification_email(user_email, user_verification_key)
@@ -238,6 +254,49 @@ def _():
         return ex.args[0]
     finally:
         if "db" in locals(): db.close()
+
+##############################
+@post("/house")
+def _():
+    try:
+        user_pk = request.query.get("user_pk")
+        house_pk = str(uuid.uuid4())
+        current_unix_time = int(time.time())
+
+        house_name = x.validate_house_name()
+        house_description = x.validate_house_description()
+        house_price_per_night = x.validate_house_price_per_night()
+        house_stars = x.validate_house_stars()
+        house_longitude = x.validate_longitude()
+        house_latitude = x.validate_latitude()
+        house_images = x.validate_house_images()
+        
+        images_to_save = []
+        for upload in house_images:
+            filename = upload.filename
+            filepath = os.path.join("images", filename)
+            upload.save(filepath)
+            images_to_save.append(filepath)
+
+        db = x.db()
+        db.execute("INSERT INTO houses (house_pk, house_name, house_description, house_price_per_night, house_latitude, house_longitude, house_stars, house_created_at, house_updated_at, user_pk) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                   (house_pk, house_name, house_description, house_price_per_night, house_latitude, house_longitude, house_stars, current_unix_time, 0, user_pk))
+            
+        for url in images_to_save:
+            db.execute("INSERT INTO house_images (house_pk, image_url) VALUES (?,?)", (house_pk,url))
+        
+        response.status = 200
+        db.commit()
+        return "House has been created"
+    except Exception as ex:
+        print(ex)
+        if len(ex.args) > 1 and ex.args[1]:
+            response.status=ex.args[1]
+        else:
+            response.status = 500
+        return ex.args[0]
+    finally:
+        if "db" in locals(): db.close()      
 
 ##############################
 @post("/verify-account")
@@ -321,6 +380,198 @@ def _():
     finally:
         if "db" in locals(): db.close()
 
+##############################
+#PUT
+##############################
+@put("/user")
+def _():
+    try:
+        
+        current_time = int(time.time())
+        
+
+        #if user_pk is in the query, this is a block/unblock call
+        user_pk = request.query.get("user_pk")
+        if user_pk:
+            db = x.db()
+            db.execute("UPDATE users SET user_is_blocked = CASE WHEN user_is_blocked = 0 THEN 1 ELSE 0 END, user_updated_at = ? WHERE user_pk = ?", 
+                       (current_time, user_pk))
+            db.commit()
+            updated_user = db.execute("SELECT user_is_blocked, user_email FROM users WHERE user_pk = ?", (user_pk,)).fetchone()
+            x.send_blocked_status_email(updated_user["user_email"], updated_user["user_is_blocked"])
+
+        #if user_pk is not in the query, this is an update user call
+        else:
+            user_username = x.validate_username()
+            user_email = x.validate_email()
+            user = get_cookie()
+            if user == "No cookies found":
+                response.status = 404
+                return user
+            db = x.db()
+            db.execute("UPDATE users SET user_username = ?, user_email = ?, user_updated_at = ? WHERE user_email = ?", 
+                    (user_username, user_email, current_time, user["user_email"]))
+            db.commit()
+            updated_user = db.execute("SELECT * FROM users WHERE user_email = ?", (user_email,)).fetchone()
+            updated_user.pop("user_password")
+            try:
+                import production
+                is_cookie_https = True
+            except:
+                is_cookie_https = False      
+
+            response.set_cookie("user", updated_user, secret=x.COOKIE_SECRET, httponly=True, secure=is_cookie_https)
+
+        response.status = 200
+        return "User have been updated"
+    except Exception as ex:
+        print(ex)
+        if len(ex.args) > 1 and ex.args[1]:
+            response.status=ex.args[1]
+        else:
+            response.status = 500
+        return ex.args[0]
+    finally:
+        if "db" in locals(): db.close()
+
+##############################
+@put("/house")
+def _():
+    try:
+        is_house_block_request = request.query.get("house_block")
+        house_pk = request.query.get('house_pk')  
+        
+        if is_house_block_request:
+            current_unix_time = int(time.time())
+            db = x.db()
+            db.execute("UPDATE houses SET house_is_blocked = CASE WHEN house_is_blocked = 0 THEN 1 ELSE 0 END, house_updated_at = ? WHERE house_pk = ?",
+                       (current_unix_time, house_pk))
+            q = db.execute("SELECT house_is_blocked FROM houses WHERE house_pk = ?", 
+                           (house_pk,))
+            house_blocked_status = q.fetchone()
+            q = db.execute("SELECT user_pk FROM houses WHERE house_pk = ?", 
+                           (house_pk,))
+            partner_pk = q.fetchone()
+            q = db.execute("SELECT user_email FROM users WHERE user_pk = ?", 
+                           (partner_pk["user_pk"],))
+            partner_email = q.fetchone()
+            x.send_blocked_house_status_email(partner_email["user_email"], house_blocked_status["house_is_blocked"])
+            db.commit()
+
+        else:
+
+            house_name = x.validate_house_name()
+            house_description = x.validate_house_description()
+            house_price_per_night = x.validate_house_price_per_night()
+            house_stars = x.validate_house_stars()
+            house_images = x.validate_house_images()
+            
+            images_to_save = []
+            for upload in house_images:
+                filename = upload.filename
+                filepath = os.path.join("images", filename)
+                upload.save(filepath)
+                images_to_save.append(filepath)
+        
+            db = x.db()
+            db.execute("UPDATE houses SET house_name = ?, house_description = ?, house_price_per_night = ?, house_stars = ? WHERE house_pk = ?", 
+                    (house_name, house_description, house_price_per_night, house_stars, house_pk))
+            
+            for url in images_to_save:
+                db.execute("INSERT INTO house_images (house_pk, image_url) VALUES (?,?)", (house_pk,url))
+
+            db.commit()
+
+        response.status = 200
+        return "House has been updated"
+    except Exception as ex:
+        print(ex)
+        if len(ex.args) > 1 and ex.args[1]:
+            response.status=ex.args[1]
+        else:
+            response.status = 500
+        return ex.args[0]
+    finally:
+        if "db" in locals(): db.close()       
+
+##############################
+#DELETE
+##############################
+@delete("/user")
+def _():
+    try:
+        user_password = x.validate_password()
+        db = x.db()
+        user = get_cookie()
+        if user == "No cookies found":
+            response.status = 404
+            return user
+        
+        db_user = db.execute("SELECT * FROM users WHERE user_email = ?", (user["user_email"],)).fetchone()
+
+        stored_hashed_password = db_user['user_password']
+        if bcrypt.checkpw(user_password.encode('utf-8'), stored_hashed_password):
+            current_time = int(time.time())
+            db.execute("UPDATE users SET user_deleted_at = ? WHERE user_pk = ?", (current_time, user["user_pk"]))
+            db.commit()
+            x.send_deletion_email(user["user_email"])
+            response.status = 200
+            response.delete_cookie("user")
+            return "User have been deleted"
+        else:
+            response.status = 404
+            return "Wrong password"
+
+    except Exception as ex:
+        print(ex)
+        if len(ex.args) > 1 and ex.args[1]:
+            response.status=ex.args[1]
+        else:
+            response.status = 500
+        return ex.args[0]
+    finally:
+        if "db" in locals(): db.close()
+##############################
+@delete("/image")
+def _():
+    try:
+        house_pk = request.query.get("house_pk")  
+        url = request.query.get("imageUrl")
+        db = x.db()
+        db.execute("DELETE FROM house_images WHERE house_pk = ? AND image_url = ?", (house_pk, url))
+        db.commit()
+        response.status = 200
+        return "Image have been deleted"
+    except Exception as ex:
+        print(ex)
+        if len(ex.args) > 1 and ex.args[1]:
+            response.status=ex.args[1]
+        else:
+            response.status = 500
+        return ex.args[0]
+    finally:
+        if "db" in locals(): db.close()     
+
+##############################
+@delete("/house")
+def _():
+    try:
+        house_pk = request.query.get("house_pk")
+        db = x.db()
+        db.execute("DELETE FROM houses WHERE house_pk = ?", (house_pk,))
+        db.execute("DELETE FROM house_images WHERE house_pk = ?", (house_pk,))
+        db.commit()
+        response.status = 200
+        return "House has been deleted"
+    except Exception as ex:
+        print(ex)
+        if len(ex.args) > 1 and ex.args[1]:
+            response.status=ex.args[1]
+        else:
+            response.status = 500
+        return ex.args[0]
+    finally:
+        if "db" in locals(): db.close()     
 ##############################
 try:
     import production

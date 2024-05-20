@@ -1,27 +1,38 @@
+import { setupAdminPage } from "./js/admin.js";
 import { getUser } from "./js/auth.js";
 import { setupLoginForm, setupSignupForm, setupResetPassword } from "./js/index.js";
+import { setUpProfilePage } from "./js/profile.js";
 import { displayToastMessage } from "./js/toastHandler.js";
 
 setupLoginForm()
 setupSignupForm()
 setupResetPassword()
+setupAdminPage()
 displayToastMessage()
+const user = await getUser()
 
 toastr.options = {
     closeButton: true
 };
 
-const updateNavbar = async () => {
+const updateNavbar = async (user) => {
     const loggedOutLinks = document.getElementById("loggedOutLinks")
     const loggedInLinks = document.getElementById("loggedInLinks")
-    const user = await getUser()
-    const userRole = user.user_role
+    const adminLink = document.getElementById("adminLink")
+    const userRole = user ? user.user_role : null;
+
     if(userRole == "admin" || userRole == "customer" || userRole == "partner"){
+        if(userRole == "admin"){
+            adminLink.classList.add("shown")
+            adminLink.classList.remove("hidden")
+        }
+
         loggedInLinks.classList.add("shown")
         loggedInLinks.classList.remove("hidden")
 
         loggedOutLinks.classList.add("hidden")
         loggedOutLinks.classList.remove("shown")
+
     } else {
         loggedInLinks.classList.remove("shown")
         loggedInLinks.classList.add("hidden")
@@ -31,4 +42,8 @@ const updateNavbar = async () => {
     }
 }
 
-await updateNavbar();
+await updateNavbar(user);
+if(user){
+    await setUpProfilePage(user)
+}
+
