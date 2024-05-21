@@ -7,10 +7,14 @@ import git, x, bcrypt, time, uuid, os
 
 @post('/1fa5b451-8928-40e8-9324-f707ebfcb485')
 def git_update():
-    repo = git.Repo('./wd_exam')
-    origin = repo.remotes.origin
-    origin.pull('main')
-    return "Updated"
+    try:
+        repo = git.Repo('./wd_exam')
+        origin = repo.remotes.origin
+        repo.git.checkout('main')
+        origin.pull('main')
+        return "Updated"
+    except Exception as e:
+        return str(e), 500
 
 ##############################
 #GET
