@@ -14,7 +14,7 @@ export const setUpProfilePage = async (user) => {
 
     if(user.user_role === "admin" || user.user_role === "partner"){
         const houses = await fetchHouses(user)
-        await addHouses(houses, "profileHouseContainer", true);
+        await addHouses(houses, user, "profileHouseContainer", true);
 
         const closeBtns = document.getElementsByClassName("close")
         Array.from(closeBtns).forEach(closeBtn => {
