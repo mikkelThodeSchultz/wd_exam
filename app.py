@@ -9,9 +9,8 @@ import git, x, bcrypt, time, uuid, os
 def git_update():
     repo = git.Repo('./wd_exam')
     origin = repo.remotes.origin
-    repo.create_head('main', origin.refs.main).set_tracking_branch(origin.refs.main).checkout()
-    origin.pull()
-    return ""
+    origin.pull('main')
+    return "Updated"
 
 ##############################
 #GET
