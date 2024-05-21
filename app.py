@@ -1,5 +1,6 @@
 from bottle import default_app, get, post, run, template, static_file, response, request, put, delete
 from json import dumps
+from arango import ArangoClient
 import git, x, bcrypt, time, uuid, os
 
 
@@ -572,7 +573,155 @@ def _():
         return ex.args[0]
     finally:
         if "db" in locals(): db.close()     
+
 ##############################
+#Arango Setup
+##############################
+client = ArangoClient()
+arangoDb = client.db('_system', username='root', password='')
+#http://127.0.0.1:8529/_db/_system/_admin/aardvark/index.html#collections
+@post("/arango/create_collections")
+def _():
+
+    if not arangoDb.has_collection("users"):
+        arangoDb.create_collection("users")
+    if not arangoDb.has_collection("houses"):
+        arangoDb.create_collection("houses")
+
+    house_collection = arangoDb.collection("houses")
+    users_collection = arangoDb.collection("users")
+
+    sample_users = [
+                {
+                    "user_username": "john_doe",
+                    "user_email": "john@example.com",
+                    "user_password": "password123",
+                    "user_role": "admin",
+                    "user_created_at": int(time.time()),
+                    "user_updated_at": 0,
+                    "user_deleted_at": 0,
+                    "user_is_verified": 1,
+                    "user_is_blocked": 0,
+                    "user_verification_key": "abc123"
+                },
+                {
+                    "user_username": "jane_smith",
+                    "user_email": "jane@example.com",
+                    "user_password": "password456",
+                    "user_role": "partner",
+                    "user_created_at": int(time.time()),
+                    "user_updated_at": 0,
+                    "user_deleted_at": 0,
+                    "user_is_verified": 1,
+                    "user_is_blocked": 0,
+                    "user_verification_key": "xyz789",
+                    "houses": [
+                        {
+                        "house_name": "Beach House",
+                        "house_description": "A beautiful beach house",
+                        "house_price_per_night": 200,
+                        "house_latitude": 34.0195,
+                        "house_longitude": -118.4912,
+                        "house_stars": 4.5,
+                        "house_created_at": 1625068800,
+                        "house_updated_at": 0,
+                        "house_is_blocked": 0
+                        },
+                        {
+                        "house_name": "Mountain Cabin",
+                        "house_description": "A cozy cabin in the mountains",
+                        "house_price_per_night": 150,
+                        "house_latitude": 39.7392,
+                        "house_longitude": -104.9903,
+                        "house_stars": 4.8,
+                        "house_created_at": 1625155200,
+                        "house_updated_at": 0,
+                        "house_is_blocked": 0
+                        }
+                    ]
+                }
+            ]
+    
+    users_collection.import_bulk(sample_users)
+
+    sample_houses = [
+            {
+                "house_name": "Beach House",
+                "house_description": "A beautiful beach house",
+                "house_price_per_night": 200,
+                "house_latitude": 34.0195,
+                "house_longitude": -118.4912,
+                "house_stars": 4.5,
+                "house_created_at": 1625068800,
+                "house_updated_at": 0,
+                "house_is_blocked": 0,
+                "user_pk": "user1"
+            },
+            {
+                "house_name": "Mountain Cabin",
+                "house_description": "A cozy cabin in the mountains",
+                "house_price_per_night": 150,
+                "house_latitude": 39.7392,
+                "house_longitude": -104.9903,
+                "house_stars": 4.8,
+                "house_created_at": 1625155200,
+                "house_updated_at": 0,
+                "house_is_blocked": 0,
+                "user_pk": "user1"
+            }
+    ]
+
+    house_collection.import_bulk(sample_houses)
+
+    return "Collection 'users' and 'houses' have been created and sampled"
+
+##############################
+@post("/arango/users")
+def _():
+    user_data = request.json
+    user_data["created_at"] = int(time.time())
+    user_data["updated_at"] = 0
+    user_data["deleted_at"] = 0
+    user_data["user_verification_key"] = str(uuid.uuid4())
+    
+    users_collection = arangoDb.collection("users")
+    user = users_collection.insert(user_data)
+    return {"User created successfully", user["_key"]}
+
+@get("/arango/users/<_key>")
+def _(_key):
+    users_collection = arangoDb.collection("users")
+    user = users_collection.get(_key)
+    if user:
+        return user
+    response.status = 404
+    return "User not found"
+
+
+@put("/arango/users/<_key>")
+def _(_key):
+    user_data = request.json
+    users_collection = arangoDb.collection("users")
+    user = users_collection.get(_key)
+    if user:
+        user_data["updated_at"] = int(time.time())
+        users_collection.update_match({"_key": _key}, user_data)
+        return "User updated successfully"
+    response.status = 404
+    return "User not found"
+
+@delete("/arango/users/<_key>")
+def _(_key):
+    users_collection = arangoDb.collection("users")
+    user = users_collection.get(_key)
+    if user:
+        users_collection.delete_match({"_key": _key})
+        return "User deleted successfully"
+    response.status = 404
+    return "User not found"
+
+##############################
+
 try:
     import production
     application = default_app()
