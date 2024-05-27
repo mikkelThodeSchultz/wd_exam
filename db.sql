@@ -73,3 +73,4 @@ VALUES ('6f187675-8b42-4bc3-bab4-394d584b07af', 'images/5dbce622fa2b4f22a6f6957d
 SELECT * FROM users;
 
 SELECT * FROM houses;
+

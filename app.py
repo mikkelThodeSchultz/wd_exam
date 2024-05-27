@@ -5,13 +5,13 @@ import git, x, bcrypt, time, uuid, os
 
 
 
-@post('/1fa5b451-8928-40e8-9324-f707ebfcb485')
-def git_update():
-    repo = git.Repo('./wd_exam')
-    origin = repo.remotes.origin
-    repo.create_head('main', origin.refs.main).set_tracking_branch(origin.refs.main).checkout()
-    origin.pull()
-    return ""
+#@post('/1fa5b451-8928-40e8-9324-f707ebfcb485')
+#def git_update():
+#    repo = git.Repo('./wd_exam')
+#    origin = repo.remotes.origin
+#    repo.create_head('main', origin.refs.main).set_tracking_branch(origin.refs.main).checkout()
+#    origin.pull()
+#    return ""
 
 ##############################
 #GET
