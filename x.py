@@ -6,10 +6,17 @@ from email.mime.text import MIMEText
 from dotenv import load_dotenv
 
 load_dotenv()
-email = os.getenv("EMAIL_USERNAME")
+EMAIL_USERNAME = os.getenv("EMAIL_USERNAME")
+EMAIL_PASSWORD = os.getenv("EMAIL_PASSWORD")
 COOKIE_SECRET = os.getenv("COOKIE_SECRET")
 MAPBOX_TOKEN = os.getenv("MAPBOX_TOKEN")
 script_dir = os.path.dirname(os.path.abspath(__file__))
+
+try:
+    import production
+    BASE_PATH = "https://mikkelthodeschultz.pythonanywhere.com"
+except Exception as ex:
+    BASE_PATH = "http://127.0.0.1"
 
 ##############################
 def dict_factory(cursor, row):
@@ -57,7 +64,7 @@ def send_password_reset_email(recipient_email, reset_password_key):
         <body>
             <h1>Reset Password</h1>
             <p>Click the button below to reset you're password:</p>
-            <a href="http://127.0.0.1/reset-password?token={reset_password_key}">
+            <a href="{BASE_PATH}/reset-password?token={reset_password_key}">
                 <button style="padding: 10px 20px; background-color: #007bff; color: #fff; border: none; cursor: pointer;">Reset Password</button>
             </a>
         </body>
@@ -65,14 +72,11 @@ def send_password_reset_email(recipient_email, reset_password_key):
         """
         message.attach(MIMEText(html_content, 'html'))
 
-        email = os.getenv("EMAIL_USERNAME")
-        password = os.getenv("EMAIL_PASSWORD")
-
         server = smtplib.SMTP('smtp.gmail.com:587')
         server.ehlo()
         server.starttls()
-        server.login(email, password)
-        server.sendmail(email, recipient_email, message.as_string())
+        server.login(EMAIL_USERNAME, EMAIL_PASSWORD)
+        server.sendmail(EMAIL_USERNAME, recipient_email, message.as_string())
         server.quit()
     except Exception as ex:
         print(ex)
@@ -97,7 +101,7 @@ def send_verification_email(recipient_email, user_verification_key):
         <body>
             <h1>Account Verification</h1>
             <p>Click the button below to verify your account:</p>
-            <a href="http://127.0.0.1/verify-account?token={user_verification_key}">
+            <a href="{BASE_PATH}/verify-account?token={user_verification_key}">
                 <button style="padding: 10px 20px; background-color: #007bff; color: #fff; border: none; cursor: pointer;">Verify Account</button>
             </a>
         </body>
@@ -105,14 +109,11 @@ def send_verification_email(recipient_email, user_verification_key):
         """
         message.attach(MIMEText(html_content, "html"))
 
-        email = os.getenv("EMAIL_USERNAME")
-        password = os.getenv("EMAIL_PASSWORD")
-
         server = smtplib.SMTP('smtp.gmail.com:587')
         server.ehlo()
         server.starttls()
-        server.login(email, password)
-        server.sendmail(email, recipient_email, message.as_string())
+        server.login(EMAIL_USERNAME, EMAIL_PASSWORD)
+        server.sendmail(EMAIL_USERNAME, recipient_email, message.as_string())
         server.quit()
     except Exception as ex:
         print(ex)
@@ -142,13 +143,11 @@ def send_deletion_email(recipient_email):
         """
         message.attach(MIMEText(html_content, "html"))
 
-        email = os.getenv("EMAIL_USERNAME")
-        password = os.getenv("EMAIL_PASSWORD")
         server = smtplib.SMTP('smtp.gmail.com:587')
         server.ehlo()
         server.starttls()
-        server.login(email, password)
-        server.sendmail(email, recipient_email, message.as_string())
+        server.login(EMAIL_USERNAME, EMAIL_PASSWORD)
+        server.sendmail(EMAIL_USERNAME, recipient_email, message.as_string())
         server.quit()
     except Exception as ex:
         print(ex)
@@ -179,13 +178,11 @@ def send_blocked_status_email(recipient_email, blocked_status):
         """
         message.attach(MIMEText(html_content, "html"))
 
-        email = os.getenv("EMAIL_USERNAME")
-        password = os.getenv("EMAIL_PASSWORD")
         server = smtplib.SMTP('smtp.gmail.com:587')
         server.ehlo()
         server.starttls()
-        server.login(email, password)
-        server.sendmail(email, recipient_email, message.as_string())
+        server.login(EMAIL_USERNAME, EMAIL_PASSWORD)
+        server.sendmail(EMAIL_USERNAME, recipient_email, message.as_string())
         server.quit()
     except Exception as ex:
         print(ex)
@@ -216,13 +213,11 @@ def send_blocked_house_status_email(recipient_email, blocked_status):
         """
         message.attach(MIMEText(html_content, "html"))
 
-        email = os.getenv("EMAIL_USERNAME")
-        password = os.getenv("EMAIL_PASSWORD")
         server = smtplib.SMTP('smtp.gmail.com:587')
         server.ehlo()
         server.starttls()
-        server.login(email, password)
-        server.sendmail(email, recipient_email, message.as_string())
+        server.login(EMAIL_USERNAME, EMAIL_PASSWORD)
+        server.sendmail(EMAIL_USERNAME, recipient_email, message.as_string())
         server.quit()
     except Exception as ex:
         print(ex)

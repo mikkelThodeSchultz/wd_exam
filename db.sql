@@ -74,3 +74,4 @@ SELECT * FROM users;
 
 SELECT * FROM houses;
 
+SELECT * FROM password_reset;
