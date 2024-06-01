@@ -12,7 +12,7 @@ export const setUpProfilePage = async (user) => {
         email.textContent = "Email: " + user.user_email
     }
 
-    if(user.user_role === "admin" || user.user_role === "partner"){
+    if(user.user_role === "partner"){
         const houses = await fetchHouses(user)
         await addHouses(houses, user, "profileHouseContainer", true);
 
@@ -24,6 +24,7 @@ export const setUpProfilePage = async (user) => {
         })
         await createHouseForm(user)
     }
+
 
 
     const editProfileModal = document.getElementById("editProfileModal");

@@ -1,4 +1,4 @@
-import { blockHouse, deleteHouse, deleteImage, editHouse, getUser } from "./auth.js";
+import { blockHouse, deleteHouse, deleteImage, editHouse, getCookie } from "./auth.js";
 
 
 
@@ -11,32 +11,6 @@ export const fetchHouses = async (user) => {
         const data = await response.json()
         return data
     } catch (error) {
-        console.log(error);
-    }
-}
-
-const createMap = async (houses) => {
-    try {
-        const response = await fetch("/mapbox_token")
-        const mapbox_token = await response.text()
-        mapboxgl.accessToken = mapbox_token
-        var map = new mapboxgl.Map({
-            container: 'map',
-            style: 'mapbox://styles/mapbox/streets-v11',
-            center: [12.5683, 55.6761],
-            zoom: 12
-        });
-        houses.forEach(house => {
-            var marker = new mapboxgl.Marker()
-                .setLngLat([house.house_longitude, house.house_latitude])
-                .addTo(map);
-
-            marker.getElement().addEventListener('click', () => {
-                openModal(house);
-            });
-        
-        });
-    } catch (error){
         console.log(error);
     }
 }
@@ -84,7 +58,6 @@ export const addHouses = async (houses, user, containerId="houseContainer", isPr
                 bookBtn.classList.add("bookBtn")
                 bookBtn.textContent = "Book!"
                 bookBtn.addEventListener("click", () => {
-                    //TODO Maybe create a function that adds a booked status to the house?
                     bookBtn.textContent = bookBtn.textContent === "Unbook" ? "Book!" : "Unbook";
                 })
                 houseCard.appendChild(bookBtn);
@@ -119,7 +92,7 @@ export const addHouses = async (houses, user, containerId="houseContainer", isPr
     })
 }
 
-const openModal = async (house, isProfilePage=false) => {
+export const openModal = async (house, isProfilePage=false) => {
     const modal = document.getElementById("houseModal");
     // Stops the modal from closing when an image is deleted
     modal.addEventListener("click", (e) => {
@@ -222,8 +195,7 @@ const closeModal = async () => {
 document.addEventListener('DOMContentLoaded', async () => {
     document.getElementsByClassName("close")[0].addEventListener("click", closeModal);
     const houses = await fetchHouses()
-    const user = await getUser()
-    createMap(houses);
+    const user = await getCookie()
     addHouses(houses, user);
 });
 

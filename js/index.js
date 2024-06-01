@@ -1,4 +1,5 @@
 import { loginUser, signupUser, resetPassword } from "./auth.js";
+import { fetchHouses, openModal } from "./houses.js";
 
 export const setupLoginForm = async () => {
     const loginForm = document.getElementById("loginForm");
@@ -65,3 +66,31 @@ export const setupResetPassword = async () => {
     }
 }
 
+const createMap = async (houses) => {
+    try {
+        const response = await fetch("/mapbox_token")
+        const mapbox_token = await response.text()
+        mapboxgl.accessToken = mapbox_token
+        var map = new mapboxgl.Map({
+            container: 'map',
+            style: 'mapbox://styles/mapbox/streets-v11',
+            center: [12.5683, 55.6761],
+            zoom: 12
+        });
+        houses.forEach(house => {
+            var marker = new mapboxgl.Marker()
+                .setLngLat([house.house_longitude, house.house_latitude])
+                .addTo(map);
+
+            marker.getElement().addEventListener('click', () => {
+                openModal(house);
+            });
+        
+        });
+    } catch (error){
+        console.log(error);
+    }
+}
+
+const houses = await fetchHouses()
+createMap(houses);

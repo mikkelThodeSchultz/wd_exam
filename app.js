@@ -1,5 +1,5 @@
 import { setupAdminPage } from "./js/admin.js";
-import { getUser } from "./js/auth.js";
+import { getCookie } from "./js/auth.js";
 import { setupLoginForm, setupSignupForm, setupResetPassword } from "./js/index.js";
 import { setUpProfilePage } from "./js/profile.js";
 import { displayToastMessage } from "./js/toastHandler.js";
@@ -9,10 +9,11 @@ setupSignupForm()
 setupResetPassword()
 setupAdminPage()
 displayToastMessage()
-const user = await getUser()
+const user = await getCookie()
 
 toastr.options = {
     closeButton: true
+
 };
 
 const updateNavbar = async (user) => {
@@ -45,5 +46,5 @@ const updateNavbar = async (user) => {
 await updateNavbar(user);
 if(user){
     await setUpProfilePage(user)
-}
+} 
 

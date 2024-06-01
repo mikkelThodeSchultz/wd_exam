@@ -206,6 +206,7 @@ def _():
                 except:
                     is_cookie_https = False        
                 response.set_cookie("user", user, secret=x.COOKIE_SECRET, httponly=True, secure=is_cookie_https)
+                response.status = 200
                 return user
         response.status = 404
         return "User not found or incorrect email/password"
@@ -280,8 +281,8 @@ def _():
             images_to_save.append(filepath)
 
         db = x.db()
-        db.execute("INSERT INTO houses (house_pk, house_name, house_description, house_price_per_night, house_latitude, house_longitude, house_stars, house_created_at, house_updated_at, user_pk) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                   (house_pk, house_name, house_description, house_price_per_night, house_latitude, house_longitude, house_stars, current_unix_time, 0, user_pk))
+        db.execute("INSERT INTO houses (house_pk, house_name, house_description, house_price_per_night, house_latitude, house_longitude, house_stars, house_created_at, house_updated_at, house_is_blocked, user_pk) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                   (house_pk, house_name, house_description, house_price_per_night, house_latitude, house_longitude, house_stars, current_unix_time, 0, 0, user_pk))
             
         for url in images_to_save:
             db.execute("INSERT INTO house_images (house_pk, image_url) VALUES (?,?)", (house_pk,url))
@@ -387,10 +388,8 @@ def _():
 @put("/user")
 def _():
     try:
-        
         current_time = int(time.time())
-        
-
+    
         #if user_pk is in the query, this is a block/unblock call
         user_pk = request.query.get("user_pk")
         if user_pk:
@@ -460,7 +459,6 @@ def _():
             db.commit()
 
         else:
-
             house_name = x.validate_house_name()
             house_description = x.validate_house_description()
             house_price_per_night = x.validate_house_price_per_night()
@@ -678,48 +676,70 @@ def _():
 ##############################
 @post("/arango/users")
 def _():
-    user_data = request.json
-    user_data["created_at"] = int(time.time())
-    user_data["updated_at"] = 0
-    user_data["deleted_at"] = 0
-    user_data["user_verification_key"] = str(uuid.uuid4())
-    
-    users_collection = arangoDb.collection("users")
-    user = users_collection.insert(user_data)
-    return {"User created successfully", user["_key"]}
+    try:
+        user_data = request.json
+        user_data["created_at"] = int(time.time())
+        user_data["updated_at"] = 0
+        user_data["deleted_at"] = 0
+        user_data["user_verification_key"] = str(uuid.uuid4())
+        
+        users_collection = arangoDb.collection("users")
+        user = users_collection.insert(user_data)
+        return {"User created successfully ", user["_key"]}
+    except Exception as ex:
+        print(ex)
+
+@get("/arango/users")
+def _():
+    try:
+        users_collection = arangoDb.collection("users")
+        cursor = users_collection.all()
+        all_users_json = [doc for doc in cursor]
+        return dumps(all_users_json)
+    except Exception as ex:
+        print(ex)
+
 
 @get("/arango/users/<_key>")
 def _(_key):
-    users_collection = arangoDb.collection("users")
-    user = users_collection.get(_key)
-    if user:
-        return user
-    response.status = 404
-    return "User not found"
-
+    try:
+        users_collection = arangoDb.collection("users")
+        user = users_collection.get(_key)
+        if user:
+            return user
+        response.status = 404
+        return "User not found"
+    except Exception as ex:
+        print(ex)
 
 @put("/arango/users/<_key>")
 def _(_key):
-    user_data = request.json
-    users_collection = arangoDb.collection("users")
-    user = users_collection.get(_key)
-    if user:
-        user_data["updated_at"] = int(time.time())
-        users_collection.update_match({"_key": _key}, user_data)
-        return "User updated successfully"
-    response.status = 404
-    return "User not found"
+    try:
+        user_data = request.json
+        users_collection = arangoDb.collection("users")
+        user = users_collection.get(_key)
+        if user:
+            user_data["updated_at"] = int(time.time())
+            users_collection.update_match({"_key": _key}, user_data)
+            return "User updated successfully"
+        response.status = 404
+        return "User not found"
+    except Exception as ex:
+        print(ex)
 
 @delete("/arango/users/<_key>")
 def _(_key):
-    users_collection = arangoDb.collection("users")
-    user = users_collection.get(_key)
-    if user:
-        users_collection.delete_match({"_key": _key})
-        return "User deleted successfully"
-    response.status = 404
-    return "User not found"
-
+    try:
+        users_collection = arangoDb.collection("users")
+        user = users_collection.get(_key)
+        if user:
+            users_collection.delete_match({"_key": _key})
+            return "User deleted successfully"
+        response.status = 404
+        return "User not found"
+    except Exception as ex:
+        print(ex)
+        
 ##############################
 
 try:

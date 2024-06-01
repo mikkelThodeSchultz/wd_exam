@@ -7,6 +7,9 @@ export const setupAdminPage = async () => {
     listOfUsers.innerHTML = "";
 
     users.forEach(user => {
+        if(user.user_role == "admin"){
+            return
+        }
         const userContainer = document.createElement("div");
         userContainer.classList.add("user");
 
@@ -35,7 +38,6 @@ export const setupAdminPage = async () => {
             } catch (error){
                 console.log(error);
             }
-            
         });
 
         userContainer.appendChild(userName);

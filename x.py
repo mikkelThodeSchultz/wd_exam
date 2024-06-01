@@ -194,7 +194,7 @@ def send_blocked_status_email(recipient_email, blocked_status):
 ##############################
 def send_blocked_house_status_email(recipient_email, blocked_status):
     try:
-        subject = 'House unblocked' if blocked_status == 1 else 'House blocked'
+        subject = 'House unblocked' if blocked_status == 0 else 'House blocked'
         message = MIMEMultipart()
         message["To"] = recipient_email
         message["From"] = 'michaelthodeschultz@gmail.com'
