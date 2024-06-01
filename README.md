@@ -6,3 +6,6 @@ type git status and see if there are uncomitted changes
 git reset --hard HEAD
 git clean -fd
 git pull origin main
+
+THEN Create the production.py file in python anywhere
+Then changes the os.getenv() in x.py to strings

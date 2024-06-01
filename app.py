@@ -51,39 +51,6 @@ def _():
     return template("profile", title="Profile", is_index_page=False)
 
 ##############################
-@get("/house")
-def _():
-    try:
-        user_pk = request.query.get('user_pk')  
-
-        db = x.db()
-        if user_pk:
-            q = db.execute("SELECT * FROM houses WHERE user_pk = ?", (user_pk,))
-        else:
-            q = db.execute("SELECT * FROM houses")
-        houses = q.fetchall()
-        houses_with_Images = []
-
-        for house in houses:
-            house_dict = dict(house)
-            q = db.execute("SELECT image_url FROM house_images WHERE house_pk = ?", (house['house_pk'],))
-            images = q.fetchall()
-            house_images = [image["image_url"] for image in images]
-            house_dict["images"] = house_images
-            houses_with_Images.append(house_dict)
-        db.close()
-        return dumps(houses_with_Images)
-    except Exception as ex:
-        print(ex)
-        if len(ex.args) > 1 and ex.args[1]:
-            response.status=ex.args[1]
-        else:
-            response.status = 500
-        return ex.args[0]
-    finally:
-        if "db" in locals(): db.close()
-
-##############################
 @get("/mapbox_token")
 def _():
     return x.MAPBOX_TOKEN
@@ -156,6 +123,39 @@ def _():
         return dumps(users)
     except Exception as ex:
         print(ex)
+    finally:
+        if "db" in locals(): db.close()
+
+##############################
+@get("/house")
+def _():
+    try:
+        user_pk = request.query.get('user_pk')  
+
+        db = x.db()
+        if user_pk:
+            q = db.execute("SELECT * FROM houses WHERE user_pk = ?", (user_pk,))
+        else:
+            q = db.execute("SELECT * FROM houses")
+        houses = q.fetchall()
+        houses_with_Images = []
+
+        for house in houses:
+            house_dict = dict(house)
+            q = db.execute("SELECT image_url FROM house_images WHERE house_pk = ?", (house['house_pk'],))
+            images = q.fetchall()
+            house_images = [image["image_url"] for image in images]
+            house_dict["images"] = house_images
+            houses_with_Images.append(house_dict)
+        db.close()
+        return dumps(houses_with_Images)
+    except Exception as ex:
+        print(ex)
+        if len(ex.args) > 1 and ex.args[1]:
+            response.status=ex.args[1]
+        else:
+            response.status = 500
+        return ex.args[0]
     finally:
         if "db" in locals(): db.close()
 
@@ -274,17 +274,26 @@ def _():
         house_images = x.validate_house_images()
         
         images_to_save = []
+        relative_image_paths = []
+
         for upload in house_images:
             filename = upload.filename
-            filepath = os.path.join("images", filename)
-            upload.save(filepath)
-            images_to_save.append(filepath)
+            relative_path = os.path.join("images", filename)
+            try:
+                import production
+                full_path = os.path.join("/home/mikkelThodeSchultz/wd_exam", relative_path)
+            except Exception as ex:
+                full_path = os.path.join(relative_path)
+            
+            upload.save(full_path)
+            images_to_save.append(full_path)
+            relative_image_paths.append(relative_path)
 
         db = x.db()
         db.execute("INSERT INTO houses (house_pk, house_name, house_description, house_price_per_night, house_latitude, house_longitude, house_stars, house_created_at, house_updated_at, house_is_blocked, user_pk) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                    (house_pk, house_name, house_description, house_price_per_night, house_latitude, house_longitude, house_stars, current_unix_time, 0, 0, user_pk))
             
-        for url in images_to_save:
+        for url in relative_image_paths:
             db.execute("INSERT INTO house_images (house_pk, image_url) VALUES (?,?)", (house_pk,url))
         
         response.status = 200
@@ -577,6 +586,7 @@ def _():
 ##############################
 client = ArangoClient()
 arangoDb = client.db('_system', username='root', password='')
+#Husk docker
 #http://127.0.0.1:8529/_db/_system/_admin/aardvark/index.html#collections
 @post("/arango/create_collections")
 def _():
