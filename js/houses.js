@@ -38,7 +38,7 @@ export const addHouses = async (houses, user, containerId="houseContainer", isPr
         details.appendChild(name);
 
         const price = document.createElement("p");
-        price.textContent = "Price per night: " + house.house_price_per_night;
+        price.textContent = "Price per night: " + house.house_price_per_night + " DKK";
         details.appendChild(price);
     
         const stars = document.createElement("p");
@@ -137,7 +137,7 @@ export const openModal = async (house, isProfilePage=false) => {
 
     modalHouseName.textContent = house.house_name;
     modalHouseDescription.textContent = house.house_description;
-    modalHousePrice.textContent = "Price per night: " + house.house_price_per_night;
+    modalHousePrice.textContent = "Price per night: " + house.house_price_per_night + " DKK";
     modalHouseStars.textContent = "Stars: " + house.house_stars;
   
     if (isProfilePage) {

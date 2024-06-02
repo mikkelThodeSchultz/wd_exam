@@ -164,15 +164,19 @@ nav, #profilePage{
         overflow-y: auto; 
         #modal-house-images{
             display: grid;
-            grid-template-columns: 1fr 1fr;
+            grid-template-columns: 1fr;
             gap: 10px;
             img{
                 width: 100%; 
                 height: auto; 
+                border-radius: 10px;
             }
         }
         p{
-            padding-top: 1rem;
+            margin: 15px 0; /* Space between paragraphs */
+            line-height: 1.6; /* Improved readability */
+            font-size: 16px; /* Standard font size */
+            color: #333; /* Darker text color for better contrast */
         }
         .close {
             color: #aaa;
@@ -186,6 +190,17 @@ nav, #profilePage{
             cursor: pointer;
           }
       }
+      @media (min-width: 768px) {
+        .modal-content {
+            width: 60%; 
+        }
+    }
+    
+    @media (min-width: 992px) {
+        .modal-content {
+            width: 50%; 
+        }
+    }
   }
   
 .houseDescriptionTextArea{

@@ -85,7 +85,6 @@ const createMap = async (houses) => {
             marker.getElement().addEventListener('click', () => {
                 openModal(house);
             });
-        
         });
     } catch (error){
         console.log(error);
