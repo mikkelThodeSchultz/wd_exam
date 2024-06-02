@@ -104,8 +104,7 @@ export const setUpProfilePage = async (user) => {
 
 //CloseModal function only for profile page
 const closeModal = async () => {
-    //Not ideal to reload the page here, but alternativeliy, the images are not removed from the main page.
-    location.reload()
+    // location.reload()
     const modal = document.getElementById("houseModal");
     modal.style.display = "none";
 }
