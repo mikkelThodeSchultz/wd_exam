@@ -1,4 +1,5 @@
 import re, sqlite3, os
+import pymysql
 from bottle import request
 import smtplib
 from email.mime.multipart import MIMEMultipart
@@ -25,9 +26,14 @@ def dict_factory(cursor, row):
     
 ##############################
 def db():
-    db = sqlite3.connect(os.getcwd()+"/db.db")  
-    db.row_factory = dict_factory
-    return db
+    connection = pymysql.connect(
+        host='db',  # This is the name of the MySQL service in docker-compose
+        user='myuser',
+        password='mypassword',
+        database='mydatabase',
+        port=3306
+    )
+    return connection
 
 ##############################
 def initialize_db():
@@ -38,7 +44,7 @@ def initialize_db():
 
         connection = db()
         cursor = connection.cursor()
-        cursor.executescript(sql_script)
+        cursor.execute(sql_script)
         connection.commit()
     except Exception as ex:
         print(ex)
