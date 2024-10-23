@@ -2,7 +2,7 @@ from bottle import default_app, get, post, run, template, static_file, response,
 from json import dumps
 from arango import ArangoClient
 import git, x, bcrypt, time, uuid, os
-
+import pymysql
 
 
 #@post('/1fa5b451-8928-40e8-9324-f707ebfcb485')
@@ -96,14 +96,15 @@ def _():
 @get("/test_db_connection")
 def _():
     try:
-        db = x.db()
-        db.execute("SELECT 1")
+        cursor, connection = x.db()  # Get cursor and connection
+        cursor.execute("SELECT 1")  # Test query
         return {"success": True, "message": "Database connection successful"}
     except Exception as e:
         response.status = 500
         return {"success": False, "error": str(e)}
     finally:
-        db.close()
+        cursor.close()  # Close cursor
+        connection.close()  # Close connection
 
 ##############################
 @get("/initialize_database")
@@ -115,39 +116,40 @@ def _():
 @get("/user")
 def _():
     try:
-        db = x.db()
-        #Since the hashed password is stored as bytes, and for security reasons, 
+        cursor, connection = x.db()
+        #Since the hashed password is stored as bytes, and for security reasons,
         #i am excluding it from this fetch so the dict_factory method still works
-        q = db.execute("SELECT user_pk, user_username, user_email, user_role, user_created_at, user_updated_at, user_deleted_at, user_is_verified, user_is_blocked, user_verification_key FROM users")
-        users = q.fetchall()
+        cursor.execute("SELECT user_pk, user_username, user_email, user_role, user_created_at, user_updated_at, user_deleted_at, user_is_verified, user_is_blocked, user_verification_key FROM users")
+        users = cursor.fetchall()
         return dumps(users)
     except Exception as ex:
         print(ex)
     finally:
-        if "db" in locals(): db.close()
+        cursor.close()
+        connection.close()
 
 ##############################
 @get("/house")
 def _():
     try:
-        user_pk = request.query.get('user_pk')  
+        user_pk = request.query.get('user_pk')
 
-        db = x.db()
+        cursor, connection = x.db()
         if user_pk:
-            q = db.execute("SELECT * FROM houses WHERE user_pk = ?", (user_pk,))
+            cursor.execute("SELECT * FROM houses WHERE user_pk = %s", (user_pk,))
         else:
-            q = db.execute("SELECT * FROM houses")
-        houses = q.fetchall()
+            cursor.execute("SELECT * FROM houses")
+        houses = cursor.fetchall()
         houses_with_Images = []
-
+        column_names = [desc[0] for desc in cursor.description]
         for house in houses:
-            house_dict = dict(house)
-            q = db.execute("SELECT image_url FROM house_images WHERE house_pk = ?", (house['house_pk'],))
-            images = q.fetchall()
-            house_images = [image["image_url"] for image in images]
+            house_dict = dict(zip(column_names, house))
+            cursor.execute("SELECT image_url FROM house_images WHERE house_pk = %s", (house_dict['house_pk'],))
+            images = cursor.fetchall()
+            house_images = [image[1] for image in images]
             house_dict["images"] = house_images
             houses_with_Images.append(house_dict)
-        db.close()
+
         return dumps(houses_with_Images)
     except Exception as ex:
         print(ex)
@@ -157,7 +159,8 @@ def _():
             response.status = 500
         return ex.args[0]
     finally:
-        if "db" in locals(): db.close()
+        cursor.close()
+        connection.close()
 
 ##############################
 @get("/cookie")
@@ -166,23 +169,26 @@ def get_cookie():
     if user_cookie:
         response.status = 200
         return user_cookie
-    else: 
+    else:
         response.status = 404
         return "No cookies found"
-    
-            
+
+
 ##############################
 @get("/password_reset")
 def _():
     try:
-        db = x.db()
-        q = db.execute("SELECT * FROM password_reset")
-        password_reset = q.fetchall()
-        return dumps(password_reset)
+        cursor, connection = x.db()  # Get cursor and connection
+        cursor.execute("SELECT * FROM password_reset")  # Execute the query
+        password_reset = cursor.fetchall()  # Fetch all results
+        return dumps(password_reset)  # Return results as JSON
     except Exception as ex:
-        print(ex)
+        print(ex)  # Log the exception
+        response.status = 500  # Set response status to 500 for errors
+        return {"success": False, "error": str(ex)}  # Return error message
     finally:
-        if "db" in locals(): db.close()
+        cursor.close()  # Close cursor
+        connection.close()  # Close connection
 
 ##############################
 #POST
@@ -190,72 +196,108 @@ def _():
 @post("/login")
 def _():
     try:
-        user_email = x.validate_email()
-        user_password = x.validate_password()
-        db = x.db()
-        q = db.execute("SELECT * FROM users WHERE user_email = ? AND user_deleted_at = 0 AND user_is_verified = 1 AND user_is_blocked = 0 LIMIT 1", (user_email,))
-        user = q.fetchone()
+        user_email = x.validate_email()  # Validate and get user email
+        user_password = x.validate_password()  # Validate and get user password
+        cursor, connection = x.db()  # Get cursor and connection
+
+        # Use %s as the placeholder for MySQL parameters
+        query = """
+            SELECT * FROM users
+            WHERE user_email = %s
+              AND user_deleted_at = 0
+              AND user_is_verified = 1
+              AND user_is_blocked = 0
+            LIMIT 1
+        """
+        cursor.execute(query, (user_email,))  # Execute the query with parameters
+        user = cursor.fetchone()  # Fetch the user
 
         if user:
-            stored_hashed_password = user['user_password']
-            if bcrypt.checkpw(user_password.encode('utf-8'), stored_hashed_password):
-                user.pop("user_password")
+            stored_hashed_password = user['user_password']  # Get stored password
+            # Verify the password
+            if bcrypt.checkpw(user_password.encode('utf-8'), stored_hashed_password.encode('utf-8')):
+                user.pop("user_password")  # Remove the password from user data
                 try:
                     import production
                     is_cookie_https = True
-                except:
-                    is_cookie_https = False        
+                except ImportError:
+                    is_cookie_https = False
+
+                # Set the cookie
                 response.set_cookie("user", user, secret=x.COOKIE_SECRET, httponly=True, secure=is_cookie_https)
-                response.status = 200
+                response.status = 200  # Successful login
                 return user
-        response.status = 404
+
+        response.status = 404  # User not found
         return "User not found or incorrect email/password"
+
     except Exception as ex:
-        print(ex)
+        print(ex)  # Log the exception
         if len(ex.args) > 1 and ex.args[1]:
-            response.status=ex.args[1]
+            response.status = ex.args[1]  # Set status from exception if available
         else:
-            response.status = 500
-        return ex.args[0]
+            response.status = 500  # Internal server error
+        return ex.args[0]  # Return error message
+
     finally:
-        if "db" in locals(): db.close()
+        cursor.close()  # Close cursor
+        connection.close()  # Close connection
+
 
 ##############################
+
 @post("/signup")
 def _():
+    cursor, connection = None, None
     try:
-        user_email = x.validate_email()
-        db = x.db()
-        email_exists = db.execute("SELECT 1 FROM users WHERE user_email = ?", (user_email,)).fetchone()
-        if email_exists:
-            response.status = 409
-            return "Email address is already in use"
-        
-        user_password = x.validate_password()
-        user_username = x.validate_username()
-        user_role = x.validate_user_role()
-        hashed_password = bcrypt.hashpw(user_password.encode('utf-8'), bcrypt.gensalt())
-        user_pk = str(uuid.uuid4())
-        current_unix_time = int(time.time())
-        user_verification_key = str(uuid.uuid4())
-    
-        db.execute("INSERT INTO users (user_pk, user_username, user_email, user_password, user_role, user_created_at, user_updated_at, user_deleted_at, user_is_verified, user_is_blocked, user_verification_key) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                   (user_pk, user_username, user_email, hashed_password, user_role, current_unix_time, 0, 0, 0, 0, user_verification_key))
-        db.commit()
+        user_email = x.validate_email()  # Validate and get user email
+        cursor, connection = x.db()  # Get cursor and connection
 
+        # Check if the email already exists
+        email_exists_query = "SELECT 1 FROM users WHERE user_email = %s"
+        cursor.execute(email_exists_query, (user_email,))
+        email_exists = cursor.fetchone()  # Fetch result
+
+        if email_exists:
+            response.status = 409  # Conflict status
+            return "Email address is already in use"
+
+        user_password = x.validate_password()  # Validate and get password
+        user_username = x.validate_username()  # Validate and get username
+        user_role = x.validate_user_role()  # Validate and get user role
+
+        hashed_password = bcrypt.hashpw(user_password.encode('utf-8'), bcrypt.gensalt())  # Hash password
+        user_pk = str(uuid.uuid4())  # Generate user primary key
+        current_unix_time = int(time.time())  # Get current time
+        user_verification_key = str(uuid.uuid4())  # Generate verification key
+
+        # Insert new user into the database
+        insert_query = """
+            INSERT INTO users (user_pk, user_username, user_email, user_password, user_role, user_created_at,
+                               user_updated_at, user_deleted_at, user_is_verified, user_is_blocked, user_verification_key)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        """
+        cursor.execute(insert_query, (user_pk, user_username, user_email, hashed_password, user_role, current_unix_time, 0, 0, 0, 0, user_verification_key))
+        connection.commit()  # Commit the transaction
+
+        # Send verification email
         x.send_verification_email(user_email, user_verification_key)
-    
-        response.status = 201
+
+        response.status = 201  # Created status
         return "User created"
     except Exception as ex:
-        print(ex)
+        print("Error during signup:", ex)  # Log the exception
         if len(ex.args) > 1 and ex.args[1]:
-            response.status=ex.args[1]
+            response.status = ex.args[1]  # Set status from exception if available
         else:
-            response.status = 500
-        return ex.args[0]
+            response.status = 500  # Internal server error
+        return str(ex)  # Return error message
     finally:
-        if "db" in locals(): db.close()
+        if cursor:  # Check if cursor was created
+            cursor.close()  # Close cursor
+        if connection:  # Check if connection was created
+            connection.close()  # Close connection
+
 
 ##############################
 @post("/house")
@@ -272,7 +314,7 @@ def _():
         house_longitude = x.validate_longitude()
         house_latitude = x.validate_latitude()
         house_images = x.validate_house_images()
-        
+
         images_to_save = []
         relative_image_paths = []
 
@@ -284,7 +326,7 @@ def _():
                 full_path = os.path.join("/home/mikkelThodeSchultz/wd_exam", relative_path)
             except Exception as ex:
                 full_path = os.path.join(relative_path)
-            
+
             upload.save(full_path)
             images_to_save.append(full_path)
             relative_image_paths.append(relative_path)
@@ -292,10 +334,10 @@ def _():
         db = x.db()
         db.execute("INSERT INTO houses (house_pk, house_name, house_description, house_price_per_night, house_latitude, house_longitude, house_stars, house_created_at, house_updated_at, house_is_blocked, user_pk) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                    (house_pk, house_name, house_description, house_price_per_night, house_latitude, house_longitude, house_stars, current_unix_time, 0, 0, user_pk))
-            
+
         for url in relative_image_paths:
             db.execute("INSERT INTO house_images (house_pk, image_url) VALUES (?,?)", (house_pk,url))
-        
+
         response.status = 200
         db.commit()
         return "House has been created"
@@ -307,7 +349,7 @@ def _():
             response.status = 500
         return ex.args[0]
     finally:
-        if "db" in locals(): db.close()      
+        if "db" in locals(): db.close()
 
 ##############################
 @post("/verify-account")
@@ -398,12 +440,12 @@ def _():
 def _():
     try:
         current_time = int(time.time())
-    
+
         #if user_pk is in the query, this is a block/unblock call
         user_pk = request.query.get("user_pk")
         if user_pk:
             db = x.db()
-            db.execute("UPDATE users SET user_is_blocked = CASE WHEN user_is_blocked = 0 THEN 1 ELSE 0 END, user_updated_at = ? WHERE user_pk = ?", 
+            db.execute("UPDATE users SET user_is_blocked = CASE WHEN user_is_blocked = 0 THEN 1 ELSE 0 END, user_updated_at = ? WHERE user_pk = ?",
                        (current_time, user_pk))
             db.commit()
             updated_user = db.execute("SELECT user_is_blocked, user_email FROM users WHERE user_pk = ?", (user_pk,)).fetchone()
@@ -418,7 +460,7 @@ def _():
                 response.status = 404
                 return user
             db = x.db()
-            db.execute("UPDATE users SET user_username = ?, user_email = ?, user_updated_at = ? WHERE user_email = ?", 
+            db.execute("UPDATE users SET user_username = ?, user_email = ?, user_updated_at = ? WHERE user_email = ?",
                     (user_username, user_email, current_time, user["user_email"]))
             db.commit()
             updated_user = db.execute("SELECT * FROM users WHERE user_email = ?", (user_email,)).fetchone()
@@ -427,7 +469,7 @@ def _():
                 import production
                 is_cookie_https = True
             except:
-                is_cookie_https = False      
+                is_cookie_https = False
 
             response.set_cookie("user", updated_user, secret=x.COOKIE_SECRET, httponly=True, secure=is_cookie_https)
 
@@ -448,20 +490,20 @@ def _():
 def _():
     try:
         is_house_block_request = request.query.get("house_block")
-        house_pk = request.query.get('house_pk')  
-        
+        house_pk = request.query.get('house_pk')
+
         if is_house_block_request:
             current_unix_time = int(time.time())
             db = x.db()
             db.execute("UPDATE houses SET house_is_blocked = CASE WHEN house_is_blocked = 0 THEN 1 ELSE 0 END, house_updated_at = ? WHERE house_pk = ?",
                        (current_unix_time, house_pk))
-            q = db.execute("SELECT house_is_blocked FROM houses WHERE house_pk = ?", 
+            q = db.execute("SELECT house_is_blocked FROM houses WHERE house_pk = ?",
                            (house_pk,))
             house_blocked_status = q.fetchone()
-            q = db.execute("SELECT user_pk FROM houses WHERE house_pk = ?", 
+            q = db.execute("SELECT user_pk FROM houses WHERE house_pk = ?",
                            (house_pk,))
             partner_pk = q.fetchone()
-            q = db.execute("SELECT user_email FROM users WHERE user_pk = ?", 
+            q = db.execute("SELECT user_email FROM users WHERE user_pk = ?",
                            (partner_pk["user_pk"],))
             partner_email = q.fetchone()
             x.send_blocked_house_status_email(partner_email["user_email"], house_blocked_status["house_is_blocked"])
@@ -473,18 +515,18 @@ def _():
             house_price_per_night = x.validate_house_price_per_night()
             house_stars = x.validate_house_stars()
             house_images = x.validate_house_images()
-            
+
             images_to_save = []
             for upload in house_images:
                 filename = upload.filename
                 filepath = os.path.join("images", filename)
                 upload.save(filepath)
                 images_to_save.append(filepath)
-        
+
             db = x.db()
-            db.execute("UPDATE houses SET house_name = ?, house_description = ?, house_price_per_night = ?, house_stars = ? WHERE house_pk = ?", 
+            db.execute("UPDATE houses SET house_name = ?, house_description = ?, house_price_per_night = ?, house_stars = ? WHERE house_pk = ?",
                     (house_name, house_description, house_price_per_night, house_stars, house_pk))
-            
+
             for url in images_to_save:
                 db.execute("INSERT INTO house_images (house_pk, image_url) VALUES (?,?)", (house_pk,url))
 
@@ -500,7 +542,7 @@ def _():
             response.status = 500
         return ex.args[0]
     finally:
-        if "db" in locals(): db.close()       
+        if "db" in locals(): db.close()
 
 ##############################
 #DELETE
@@ -514,7 +556,7 @@ def _():
         if user == "No cookies found":
             response.status = 404
             return user
-        
+
         db_user = db.execute("SELECT * FROM users WHERE user_email = ?", (user["user_email"],)).fetchone()
 
         stored_hashed_password = db_user['user_password']
@@ -543,7 +585,7 @@ def _():
 @delete("/image")
 def _():
     try:
-        house_pk = request.query.get("house_pk")  
+        house_pk = request.query.get("house_pk")
         url = request.query.get("imageUrl")
         db = x.db()
         db.execute("DELETE FROM house_images WHERE house_pk = ? AND image_url = ?", (house_pk, url))
@@ -558,7 +600,7 @@ def _():
             response.status = 500
         return ex.args[0]
     finally:
-        if "db" in locals(): db.close()     
+        if "db" in locals(): db.close()
 
 ##############################
 @delete("/house")
@@ -579,7 +621,7 @@ def _():
             response.status = 500
         return ex.args[0]
     finally:
-        if "db" in locals(): db.close()     
+        if "db" in locals(): db.close()
 
 ##############################
 #Arango Setup
@@ -649,7 +691,7 @@ def _():
                     ]
                 }
             ]
-    
+
     users_collection.import_bulk(sample_users)
 
     sample_houses = [
@@ -692,7 +734,7 @@ def _():
         user_data["updated_at"] = 0
         user_data["deleted_at"] = 0
         user_data["user_verification_key"] = str(uuid.uuid4())
-        
+
         users_collection = arangoDb.collection("users")
         user = users_collection.insert(user_data)
         return {"User created successfully ", user["_key"]}
@@ -749,7 +791,7 @@ def _(_key):
         return "User not found"
     except Exception as ex:
         print(ex)
-        
+
 ##############################
 
 try:
@@ -757,4 +799,4 @@ try:
     application = default_app()
 except Exception as ex:
     print("Running local server")
-    run(host="127.0.0.1", port=80, debug=True, reloader=True)
+    run(host="0.0.0.0", port=5000, debug=True, reloader=True)

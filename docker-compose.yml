@@ -1,0 +1,31 @@
+services:
+  db:
+    image: mysql:latest
+    volumes:
+      - mysqldb:/var/lib/mysql
+      - ./db_files:/dbfiles
+      - .:/docker-entrypoint-initdb.d
+    env_file:
+      - .env
+    ports:
+      - 3306:3306
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: myapp:latest
+    env_file:
+      - .env
+    depends_on:
+      - db
+
+  nginx:
+    image: nginx:stable-alpine
+    volumes:
+      - ./nginx-config:/etc/nginx/conf.d
+    ports:
+      - 4000:80
+
+volumes:
+  mysqldb:

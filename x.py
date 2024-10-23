@@ -23,7 +23,7 @@ except Exception as ex:
 def dict_factory(cursor, row):
     col_names = [col[0] for col in cursor.description]
     return {key: value for key, value in zip(col_names, row)}
-    
+
 ##############################
 def db():
     connection = pymysql.connect(
@@ -33,7 +33,7 @@ def db():
         database='mydatabase',
         port=3306
     )
-    return connection
+    return connection.cursor(), connection
 
 ##############################
 def initialize_db():
@@ -86,7 +86,7 @@ def send_password_reset_email(recipient_email, reset_password_key):
         server.quit()
     except Exception as ex:
         print(ex)
-        return "error"    
+        return "error"
 
 ##############################
 def send_verification_email(recipient_email, user_verification_key):
@@ -158,7 +158,7 @@ def send_deletion_email(recipient_email):
     except Exception as ex:
         print(ex)
         return "error"
-    
+
 ##############################
 def send_blocked_status_email(recipient_email, blocked_status):
     try:
@@ -192,8 +192,8 @@ def send_blocked_status_email(recipient_email, blocked_status):
         server.quit()
     except Exception as ex:
         print(ex)
-        return "error"  
-    
+        return "error"
+
 ##############################
 def send_blocked_house_status_email(recipient_email, blocked_status):
     try:
@@ -227,8 +227,8 @@ def send_blocked_house_status_email(recipient_email, blocked_status):
         server.quit()
     except Exception as ex:
         print(ex)
-        return "error"  
-    
+        return "error"
+
 ##############################
 #Validate
 ##############################
@@ -245,10 +245,10 @@ LATITUDE_REGEX = r'^-?((90(\.0{1,6})?)|(([1-8]?\d)|(\d{1,2}))(\.\d{1,6})?)$'
 def validate_email():
     error = "Invalid email"
     user_email = request.forms.get("user_email", "").strip()
-    if not re.match(EMAIL_REGEX, user_email): 
+    if not re.match(EMAIL_REGEX, user_email):
         raise Exception(error, 400)
     return user_email
-    
+
 def validate_password():
    error = "Password too short"
    user_password = request.forms.get("user_password", "").strip()
@@ -310,7 +310,7 @@ def validate_house_images():
             if image.content_length > max_size_in_bytes:
                 raise Exception(error, 400)
             valid_house_images.append(image)
-            
+
     return valid_house_images
 
 def validate_longitude():
@@ -324,5 +324,5 @@ def validate_latitude():
     error = "Latitude is out of range"
     house_latidude = request.forms.get("house_latitude", "").strip()
     if not re.match(LATITUDE_REGEX, house_latidude):
-        raise Exception(error, 400)    
+        raise Exception(error, 400)
     return house_latidude
